@@ -527,3 +527,93 @@ func (m *Manager) ThreadSafe() *ThreadSafeManager {
 		mu:      &sync.RWMutex{},
 	}
 }
+
+func (t *ThreadSafeManager) Get(key string) (interface{}, error) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return t.manager.Get(key)
+}
+
+func (t *ThreadSafeManager) GetString(key string) (string, error) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return t.manager.GetString(key)
+}
+
+func (t *ThreadSafeManager) GetBool(key string) (bool, error) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return t.manager.GetBool(key)
+}
+
+func (t *ThreadSafeManager) GetInt(key string) (int, error) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return t.manager.GetInt(key)
+}
+
+func (t *ThreadSafeManager) GetFloat(key string) (float64, error) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return t.manager.GetFloat(key)
+}
+
+func (t *ThreadSafeManager) GetStringSlice(key string) ([]string, error) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return t.manager.GetStringSlice(key)
+}
+
+func (t *ThreadSafeManager) Set(key string, value interface{}) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.manager.Set(key, value)
+}
+
+func (t *ThreadSafeManager) Has(key string) bool {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return t.manager.Has(key)
+}
+
+func (t *ThreadSafeManager) Delete(key string) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.manager.Delete(key)
+}
+
+func (t *ThreadSafeManager) Save() error {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return t.manager.Save()
+}
+
+func (t *ThreadSafeManager) SaveToFile(path string, format Format) error {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return t.manager.SaveToFile(path, format)
+}
+
+func (t *ThreadSafeManager) Data() map[string]interface{} {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return t.manager.Data()
+}
+
+func (t *ThreadSafeManager) Clear() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.manager.Clear()
+}
+
+func (t *ThreadSafeManager) Merge(other *Manager) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.manager.Merge(other)
+}
+
+func (t *ThreadSafeManager) MergeMap(data map[string]interface{}) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.manager.MergeMap(data)
+}
