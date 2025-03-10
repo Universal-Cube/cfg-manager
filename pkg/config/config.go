@@ -200,7 +200,7 @@ func (m *Manager) GetBool(key string) (bool, error) {
 		return false, &ConfigError{
 			Operation: "convert",
 			Key:       key,
-			Err:       fmt.Errorf("cannot convert '%T' to bool", value),
+			Err:       fmt.Errorf("cannot convert %T to bool", value),
 		}
 	}
 }
@@ -239,5 +239,78 @@ func (m *Manager) GetInt(key string) (int, error) {
 			Key:       key,
 			Err:       fmt.Errorf("cannot convert %T to int", value),
 		}
+	}
+}
+
+func (m *Manager) GetFloat(key string) (float64, error) {
+	value, err := m.Get(key)
+	if err != nil {
+		return 0, err
+	}
+
+	switch v := value.(type) {
+	case float64:
+		return v, nil
+	case float32:
+		return float64(v), nil
+	case int:
+		return float64(v), nil
+	case int32:
+		return float64(v), nil
+	case int64:
+		return float64(v), nil
+	case string:
+		var f float64
+		_, err := fmt.Sscanf(v, "%f", &f)
+		if err != nil {
+			return 0, &ConfigError{
+				Operation: "convert",
+				Key:       key,
+				Err:       errors.New("cannot convert string to float"),
+			}
+		}
+		return f, nil
+	default:
+		return 0, &ConfigError{
+			Operation: "convert",
+			Key:       key,
+			Err:       fmt.Errorf("cannot convert %T to float", value),
+		}
+	}
+}
+
+func (m *Manager) GetStringSlice(key string) ([]string, error) {
+	value, err := m.Get(key)
+	if err != nil {
+		return nil, err
+	}
+
+	if strSlice, ok := value.([]string); ok {
+		return strSlice, nil
+	}
+
+	if slice, ok := value.([]interface{}); ok {
+		result := make([]string, len(slice))
+		for i, v := range slice {
+			switch sv := v.(type) {
+			case string:
+				result[i] = sv
+			case []byte:
+				result[i] = string(sv)
+			default:
+				result[i] = fmt.Sprintf("%v", v)
+			}
+		}
+		return result, nil
+	}
+
+	if str, ok := value.(string); ok {
+		return []string{str}, nil
+	}
+
+	return nil, &ConfigError{
+		Operation: "convert",
+		Key:       key,
+		Err:       fmt.Errorf("cannot convert %T to []string", value),
 	}
 }
