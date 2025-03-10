@@ -1,5 +1,7 @@
 package config
 
+import "sync"
+
 type Format string
 
 const (
@@ -15,6 +17,11 @@ type Manager struct {
 	filePath      string
 	fileFormat    Format
 	caseSensitive bool
+}
+
+type ThreadSafeManager struct {
+	mu      sync.RWMutex
+	manager *Manager
 }
 
 type ConfigError struct {
