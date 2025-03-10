@@ -114,7 +114,7 @@ func getNestedMap(data map[string]interface{}, path string, caseSensitive bool) 
 		}
 	}
 
-	return nil, "", nil
+	return current, lastKey, nil
 }
 
 func transformMapKeys(v interface{}) interface{} {
