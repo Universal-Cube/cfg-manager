@@ -7,6 +7,7 @@ import (
 	"gopkg.in/yaml.v3"
 	"io"
 	"os"
+	"strings"
 )
 
 func WithCaseSensitive(sensitive bool) Option {
@@ -117,4 +118,126 @@ func (m *Manager) Load(r io.Reader, format Format) error {
 
 	m.fileFormat = format
 	return nil
+}
+
+func (m *Manager) Get(key string) (interface{}, error) {
+	if key == "" {
+		return m.data, nil
+	}
+
+	parentMap, lastKey, err := getNestedMap(m.data, key, m.caseSensitive)
+	if err != nil {
+		return nil, &ConfigError{
+			Operation: "get nested map",
+			Key:       key,
+			Err:       err,
+		}
+	}
+
+	if !m.caseSensitive {
+		for key := range parentMap {
+			if strings.EqualFold(key, lastKey) {
+				lastKey = key
+				break
+			}
+		}
+	}
+
+	value, exists := parentMap[lastKey]
+	if !exists {
+		return nil, &ConfigError{
+			Operation: "get value",
+			Key:       key,
+			Err:       fmt.Errorf("key '%s' not found", key),
+		}
+	}
+
+	return value, nil
+}
+
+func (m *Manager) GetString(key string) (string, error) {
+	value, err := m.Get(key)
+	if err != nil {
+		return "", err
+	}
+
+	switch v := value.(type) {
+	case string:
+		return v, nil
+	case []byte:
+		return string(v), nil
+	default:
+		return fmt.Sprintf("%v", v), nil
+	}
+}
+
+func (m *Manager) GetBool(key string) (bool, error) {
+	value, err := m.Get(key)
+	if err != nil {
+		return false, err
+	}
+
+	switch v := value.(type) {
+	case bool:
+		return v, nil
+	case int:
+		return v != 0, nil
+	case float64:
+		return v != 0, nil
+	case string:
+		lower := strings.ToLower(v)
+		if lower == "true" || lower == "1" || lower == "yes" || lower == "y" || lower == "on" {
+			return true, nil
+		} else if lower == "false" || lower == "0" || lower == "no" || lower == "n" || lower == "off" {
+			return false, nil
+		}
+		return false, &ConfigError{
+			Operation: "convert",
+			Key:       key,
+			Err:       errors.New("cannot convert string to bool"),
+		}
+	default:
+		return false, &ConfigError{
+			Operation: "convert",
+			Key:       key,
+			Err:       fmt.Errorf("cannot convert '%T' to bool", value),
+		}
+	}
+}
+
+func (m *Manager) GetInt(key string) (int, error) {
+	value, err := m.Get(key)
+	if err != nil {
+		return 0, err
+	}
+
+	switch v := value.(type) {
+	case int:
+		return v, nil
+	case int64:
+		return int(v), nil
+	case int32:
+		return int(v), nil
+	case float64:
+		return int(v), nil
+	case float32:
+		return int(v), nil
+	case string:
+		var i int
+		_, err := fmt.Sscanf(v, "%d", &i)
+		if err != nil {
+			return 0, &ConfigError{
+				Operation: "convert",
+				Key:       key,
+				Err:       errors.New("cannot convert string to int"),
+			}
+		}
+		return i, nil
+	default:
+		return 0, &ConfigError{
+			Operation: "convert",
+			Key:       key,
+			Err:       fmt.Errorf("cannot convert %T to int", value),
+		}
+	}
 }
