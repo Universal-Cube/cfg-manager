@@ -20,7 +20,7 @@ type Manager struct {
 }
 
 type ThreadSafeManager struct {
-	mu      sync.RWMutex
+	mu      *sync.RWMutex
 	manager *Manager
 }
 

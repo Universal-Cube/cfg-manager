@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 func WithCaseSensitive(sensitive bool) Option {
@@ -517,5 +518,12 @@ func (m *Manager) MergeMap(data map[string]interface{}) {
 		}
 
 		m.data[k] = v
+	}
+}
+
+func (m *Manager) ThreadSafe() *ThreadSafeManager {
+	return &ThreadSafeManager{
+		manager: m,
+		mu:      &sync.RWMutex{},
 	}
 }
