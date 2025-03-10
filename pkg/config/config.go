@@ -498,3 +498,24 @@ func (m *Manager) WithFormat(format Format) *Manager {
 func (m *Manager) Clear() {
 	m.data = make(map[string]interface{})
 }
+
+func (m *Manager) Merge(other *Manager) {
+	m.MergeMap(other.data)
+}
+
+func (m *Manager) MergeMap(data map[string]interface{}) {
+	for k, v := range data {
+		if existing, ok := m.data[k]; ok {
+			if existingMap, isMap := existing.(map[string]interface{}); isMap {
+				if newMap, isMap := v.(map[string]interface{}); isMap {
+					for nk, nv := range newMap {
+						existingMap[nk] = nv
+					}
+					continue
+				}
+			}
+		}
+
+		m.data[k] = v
+	}
+}
