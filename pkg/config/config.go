@@ -7,6 +7,7 @@ import (
 	"gopkg.in/yaml.v3"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -313,4 +314,187 @@ func (m *Manager) GetStringSlice(key string) ([]string, error) {
 		Key:       key,
 		Err:       fmt.Errorf("cannot convert %T to []string", value),
 	}
+}
+
+func (m *Manager) Set(key string, value interface{}) error {
+	if key == "" {
+		return &ConfigError{
+			Operation: "set",
+			Key:       key,
+			Err:       errors.New("key cannot be empty"),
+		}
+	}
+
+	keys := strings.Split(key, ".")
+	lastIndex := len(keys) - 1
+	lastKey := keys[lastIndex]
+
+	if lastIndex == 0 {
+		m.data[lastKey] = value
+		return nil
+	}
+
+	current := m.data
+	for i := 0; i < lastIndex; i++ {
+		k := keys[i]
+		v, exists := current[k]
+		if !exists {
+			newMap := make(map[string]interface{})
+			current[k] = newMap
+			current = newMap
+			continue
+		}
+
+		nextMap, ok := v.(map[string]interface{})
+		if !ok {
+			iFaceMap, isIFaceMap := v.(map[interface{}]interface{})
+			if !isIFaceMap {
+				newMap := make(map[string]interface{})
+				current[k] = newMap
+				current = newMap
+				continue
+			}
+
+			nextMap = make(map[string]interface{})
+			for ik, iv := range iFaceMap {
+				strKey, ok := ik.(string)
+				if !ok {
+					strKey = fmt.Sprintf("%v", ik)
+				}
+				nextMap[strKey] = iv
+			}
+			current[k] = nextMap
+		}
+
+		current = nextMap
+	}
+
+	current[lastKey] = value
+	return nil
+}
+
+func (m *Manager) Has(key string) bool {
+	_, err := m.Get(key)
+	return err == nil
+}
+
+func (m *Manager) Delete(key string) error {
+	if key == "" {
+		return &ConfigError{
+			Operation: "delete",
+			Key:       key,
+			Err:       errors.New("empty key"),
+		}
+	}
+
+	parentMap, lastKey, err := getNestedMap(m.data, key, m.caseSensitive)
+	if err != nil {
+		return &ConfigError{
+			Operation: "delete",
+			Key:       key,
+			Err:       err,
+		}
+	}
+
+	if !m.caseSensitive {
+		for k := range parentMap {
+			if strings.EqualFold(k, lastKey) {
+				lastKey = k
+				break
+			}
+		}
+	}
+
+	if _, exists := parentMap[lastKey]; !exists {
+		return &ConfigError{
+			Operation: "delete",
+			Key:       key,
+			Err:       errors.New("key not found"),
+		}
+	}
+
+	delete(parentMap, lastKey)
+	return nil
+}
+
+func (m *Manager) Save() error {
+	if m.filePath == "" {
+		return &ConfigError{
+			Operation: "save",
+			Err:       errors.New("file path not set"),
+		}
+	}
+
+	return m.SaveToFile(m.filePath, m.fileFormat)
+}
+
+func (m *Manager) SaveToFile(path string, format Format) error {
+	resolvedPath, err := resolvePath(path)
+	if err != nil {
+		return &ConfigError{
+			Operation: "resolve path",
+			Err:       err,
+		}
+	}
+
+	var content []byte
+	switch format {
+	case FormatJSON:
+		content, err = json.MarshalIndent(m.data, "", "  ")
+	case FormatYAML, FormatYML:
+		content, err = yaml.Marshal(m.data)
+	default:
+		err = fmt.Errorf("unsupported file format: %s", format)
+	}
+
+	if err != nil {
+		return &ConfigError{
+			Operation: "marshal",
+			Err:       err,
+		}
+	}
+
+	dir := filepath.Dir(resolvedPath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return &ConfigError{
+			Operation: "create directory",
+			Err:       err,
+		}
+	}
+
+	if err := os.WriteFile(resolvedPath, content, 0644); err != nil {
+		return &ConfigError{
+			Operation: "write file",
+			Err:       err,
+		}
+	}
+
+	m.filePath = resolvedPath
+	m.fileFormat = format
+
+	return nil
+}
+
+func (m *Manager) Data() map[string]interface{} {
+	result := make(map[string]interface{})
+
+	for k, v := range m.data {
+		result[k] = v
+	}
+
+	return result
+}
+
+func (m *Manager) WithFilePath(path string) *Manager {
+	m.filePath = path
+	return m
+}
+
+func (m *Manager) WithFormat(format Format) *Manager {
+	m.fileFormat = format
+	return m
+}
+
+func (m *Manager) Clear() {
+	m.data = make(map[string]interface{})
 }
