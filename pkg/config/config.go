@@ -122,6 +122,41 @@ func (m *Manager) Load(r io.Reader, format Format) error {
 	return nil
 }
 
+func (m *Manager) Bind(target interface{}) error {
+	if target == nil {
+		return &ConfigError{
+			Operation: "bind",
+			Err:       errors.New("target cannot be nil"),
+		}
+	}
+
+	data, err := m.Get("")
+	if err != nil {
+		return &ConfigError{
+			Operation: "get data",
+			Err:       err,
+		}
+	}
+
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return &ConfigError{
+			Operation: "marshal data",
+			Err:       fmt.Errorf("failed to marshal data: %w", err),
+		}
+	}
+
+	err = json.Unmarshal(jsonData, target)
+	if err != nil {
+		return &ConfigError{
+			Operation: "unmarshal data",
+			Err:       fmt.Errorf("failed to unmarshal data into target struct: %w", err),
+		}
+	}
+
+	return nil
+}
+
 func (m *Manager) Get(key string) (interface{}, error) {
 	if key == "" {
 		return m.data, nil
