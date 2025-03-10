@@ -1,4 +1,4 @@
-module github.com/Universal-Cube/go-cfg-manager
+module github.com/Universal-Cube/cfg-manager
 
 go 1.24.1
 
