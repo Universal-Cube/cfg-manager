@@ -22,6 +22,7 @@ go get github.com/Universal-Cube/cfg-manager
 - **Type Conversion**: Built-in methods for converting values to different data types (string, int, bool, float, slices)
 - **Mutable Configuration**: Modify and save configuration changes at runtime
 - **Developer-Friendly API**: Clean, intuitive interface designed for ease of use
+- **Struct Binding**: Automatically bind configuration values to Go structs using tags
 
 ## 🔍 Quick Example
 
@@ -29,26 +30,69 @@ go get github.com/Universal-Cube/cfg-manager
 package main
 
 import (
-    "fmt"
-    "github.com/Universal-Cube/cfg-manager/pkg/config"
+	"fmt"
+	"github.com/Universal-Cube/cfg-manager/pkg/config"
 )
 
 func main() {
-    // Load configuration from file
-    cfg, err := config.LoadFromFile("config.json")
-    if err != nil {
-        panic(err)
-    }
+	// Load configuration from file
+	cfg, err := config.LoadFromFile("config.json")
+	if err != nil {
+		panic(err)
+	}
 
-    // Access values using dot notation
-    host := cfg.G("database.host")
-    port := cfg.GetInt("database.port")
-    
-    fmt.Printf("Database connection: %s:%d\n", host, port)
-    
-    // Modify and save configuration
-    cfg.Set("database.host", "new-host.example.com")
-    cfg.SaveToFile("config.json")
+	// Access values using dot notation
+	host := cfg.G("database.host")
+	port := cfg.GetInt("database.port")
+
+	fmt.Printf("Database connection: %s:%d\n", host, port)
+
+	// Modify and save configuration
+	cfg.Set("database.host", "new-host.example.com")
+	cfg.SaveToFile("config.json")
+}
+```
+
+## 🔄 Struct Binding
+
+Automatically bind configuration to Go structs with tags:
+
+```go
+package main
+
+import (
+	"fmt"
+	"github.com/Universal-Cube/cfg-manager/pkg/config"
+)
+
+type Config struct {
+	Database struct {
+		Host     string `json:"host"`
+		Port     int    `json:"port"`
+		Username string `json:"username"`
+		Password string `json:"password"`
+	} `json:"database"`
+
+	App struct {
+		Debug   bool `json:"debug"`
+		Timeout int  `json:"timeout"`
+	} `json:"app"`
+}
+
+func main() {
+	cfg := config.New()
+	err := cfg.LoadFile("config.yaml")
+	if err != nil {
+		panic(err)
+	}
+
+	var appConfig Config
+	err = cfg.Bind(&appConfig)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("Database Host: %s\n", appConfig.Database.Host)
 }
 ```
 
